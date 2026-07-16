@@ -63,3 +63,16 @@ def test_transacao_por_linha():
             db.close()
 
     return {"sucesso": sucesso, "falhas": falhas}
+
+import random
+
+@app.post("/test-popular")
+def test_popular():
+    db = SessionLocal()
+    for i in range(50000):
+        db.add(ImportFile(filename=f"arquivo_{i}.csv"))
+        if i % 1000 == 0:  # commita em lotes, não um por um (isso ia demorar muito)
+            db.commit()
+    db.commit()
+    db.close()
+    return {"status": "50000 registros criados"}
