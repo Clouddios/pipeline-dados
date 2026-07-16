@@ -33,3 +33,33 @@ def test_list():
     arquivos = db.query(ImportFile).all()
     db.close()
     return [{"id": a.id, "filename": a.filename, "status": a.status} for a in arquivos]
+
+@app.post("/test-transacao-quebrada")
+def test_transacao_quebrada():
+    db = SessionLocal()
+    db.add(ImportFile(filename="arquivo_1.csv"))
+    db.add(ImportFile(filename="arquivo_2.csv"))
+    db.add(ImportFile(filename=None))  # isso vai violar o "nullable=False" e quebrar
+    db.commit()  # nunca chega aqui
+    db.close()
+    return {"status": "nunca deveria chegar aqui"}
+
+@app.post("/test-transacao-por-linha")
+def test_transacao_por_linha():
+    arquivos = ["arquivo_a.csv", "arquivo_b.csv", None, "arquivo_c.csv"]
+    sucesso = []
+    falhas = []
+
+    for nome in arquivos:
+        db = SessionLocal()
+        try:
+            db.add(ImportFile(filename=nome))
+            db.commit()
+            sucesso.append(nome)
+        except Exception as e:
+            db.rollback()  # desfaz só essa tentativa
+            falhas.append({"arquivo": nome, "erro": str(e)[:100]})
+        finally:
+            db.close()
+
+    return {"sucesso": sucesso, "falhas": falhas}
